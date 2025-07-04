@@ -1,9 +1,9 @@
 from flask import Flask, request, jsonify
-import openai
+from openai import OpenAI
 import os
 
 app = Flask(__name__)
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Memorie locală per utilizator
 user_histories = {}
@@ -22,28 +22,24 @@ def chat():
     if not message:
         return jsonify({"error": "Mesajul este gol"}), 400
 
-    # Istoric per user
     if user_id not in user_histories:
         user_histories[user_id] = [
             {"role": "system", "content": "Ești un antrenor prietenos care oferă sfaturi despre nutriție și fitness."}
         ]
 
-    # Adaugă întrebarea userului
     user_histories[user_id].append({"role": "user", "content": message})
-    history = user_histories[user_id][-MAX_HISTORY:]  # doar ultimele mesaje
+    history = user_histories[user_id][-MAX_HISTORY:]
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=history,
             max_tokens=150,
             temperature=0.7
         )
-        reply = response["choices"][0]["message"]["content"]
+        reply = response.choices[0].message.content
 
-        # Adaugă răspunsul AI în istoric
         user_histories[user_id].append({"role": "assistant", "content": reply})
-
         return jsonify({"reply": reply})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
